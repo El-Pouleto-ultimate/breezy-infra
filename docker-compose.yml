@@ -1,28 +1,44 @@
-version: '3.8'
-
 services:
+
+  # ─── NGINX ──────────────────────────────────────────────────────────────────
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: breezy-nginx
+    ports:
+      - "80:80"
+    networks:
+      - breezy-network
+    depends_on:
+      - frontend
+      - gateway
+
+  # ─── FRONTEND ───────────────────────────────────────────────────────────────
   frontend:
     build:
       context: ../breezy-frontend
       dockerfile: Dockerfile
     container_name: breezy-frontend
-    ports:
-      - "3000:3000"
+    expose:
+      - "5173"
     volumes:
       - ../breezy-frontend:/app
-      - /app/.next
       - /app/node_modules
     networks:
       - breezy-network
-  
+
+  # ─── GATEWAY ────────────────────────────────────────────────────────────────
   gateway:
-    build: 
-      context: ./gateway
+    build:
+      context: ../breezy-gateway
       dockerfile: Dockerfile
     container_name: breezy-gateway
-    ports:
-      - "4000:4000"
+    expose:
+      - "3000"
     environment:
+      - PORT=3000
+      - JWT_SECRET=CACACACACACACACA
       - AUTH_SERVICE_URL=http://auth-service:3001
       - USER_SERVICE_URL=http://user-service:3002
       - POST_SERVICE_URL=http://post-service:3003
@@ -34,19 +50,19 @@ services:
       - user-service
       - post-service
       - profil-service
-  
 
-  # Backend microservice configuration
-
-
+  # ─── SERVICES BACKEND ───────────────────────────────────────────────────────
   auth-service:
-    build: 
+    build:
       context: ../breezy-auth-service
       dockerfile: Dockerfile
-    container_name: breezy-authentification
+    container_name: breezy-auth
+    expose:
+      - "3001"
     environment:
       - PORT=3001
-      - DATABASE_URL=postgres://user:password@pg-auth:5432/auth_db
+      - JWT_SECRET=CACACACACACACACA
+      - DATABASE_URL=postgres://user:auth-password@pg-auth:5432/auth_db
     volumes:
       - ../breezy-auth-service:/app
       - /app/node_modules
@@ -56,13 +72,15 @@ services:
       - pg-auth
 
   user-service:
-    build: 
+    build:
       context: ../breezy-user-service
       dockerfile: Dockerfile
-    container_name: breezy-user-backend
+    container_name: breezy-user
+    expose:
+      - "3002"
     environment:
       - PORT=3002
-      - DATABASE_URL=postgres://user:password@pg-auth:5432/user_db
+      - DATABASE_URL=postgres://user:user-password@pg-users:5432/users_db
     volumes:
       - ../breezy-user-service:/app
       - /app/node_modules
@@ -72,10 +90,12 @@ services:
       - pg-users
 
   post-service:
-    build: 
+    build:
       context: ../breezy-post-service
       dockerfile: Dockerfile
-    container_name: breezy-post-backend
+    container_name: breezy-post
+    expose:
+      - "3003"
     environment:
       - PORT=3003
       - MONGO_URI=mongodb://mongo-posts:27017/posts_db
@@ -91,7 +111,9 @@ services:
     build:
       context: ../breezy-profil-service
       dockerfile: Dockerfile
-    container_name: breezy-profil-backend
+    container_name: breezy-profil
+    expose:
+      - "3004"
     environment:
       - PORT=3004
       - MONGO_URI=mongodb://mongo-profils:27017/profils_db
@@ -103,10 +125,7 @@ services:
     depends_on:
       - mongo-profils
 
-
-  # Backend base de données configuration
-
-
+  # ─── BASES DE DONNÉES ───────────────────────────────────────────────────────
   pg-auth:
     image: postgres:15-alpine
     container_name: breezy-db-pg-auth
@@ -114,8 +133,8 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: auth-password
       POSTGRES_DB: auth_db
-    ports:
-      - "5432:5432" 
+    volumes:
+      - pg_auth_data:/var/lib/postgresql/data
     networks:
       - breezy-network
 
@@ -126,27 +145,35 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: user-password
       POSTGRES_DB: users_db
-    ports:
-      - "5433:5432"
+    volumes:
+      - pg_users_data:/var/lib/postgresql/data
     networks:
       - breezy-network
 
   mongo-posts:
     image: mongo:6
     container_name: breezy-db-mongo-posts
-    ports:
-      - "27017:27017"
+    volumes:
+      - mongo_posts_data:/data/db
     networks:
       - breezy-network
 
   mongo-profils:
     image: mongo:6
     container_name: breezy-db-mongo-profils
-    ports:
-      - "27018:27017"
+    volumes:
+      - mongo_profils_data:/data/db
     networks:
       - breezy-network
 
+# ─── VOLUMES ──────────────────────────────────────────────────────────────────
+volumes:
+  pg_auth_data:
+  pg_users_data:
+  mongo_posts_data:
+  mongo_profils_data:
+
+# ─── RÉSEAU ───────────────────────────────────────────────────────────────────
 networks:
   breezy-network:
     driver: bridge
