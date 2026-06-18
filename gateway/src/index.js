@@ -4,8 +4,35 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const authMiddleware = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler.js');
+const rateLimit = require('express-rate-limit');
 const app = express();
 app.use(express.json());    
+
+// ─── RATE LIMITING ────────────────────────────────────────────────────────────
+
+// Limiteur global : 100 requêtes par 15 minutes par IP
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: { error: 'Trop de requêtes, réessaie dans 15 minutes' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Limiteur strict pour l'authentification : 10 tentatives par 15 minutes
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: 'Trop de tentatives de connexion, réessaie dans 15 minutes' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// On applique le limiteur global sur toutes les routes
+app.use(globalLimiter);
+
+// On applique le limiteur strict uniquement sur /api/auth
+app.use('/api/auth', authLimiter);
 
 // ─── ROUTES PUBLIQUES ────────────────────────────────────────────────────────
 
