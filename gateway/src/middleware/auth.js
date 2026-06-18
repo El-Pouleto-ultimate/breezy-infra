@@ -1,4 +1,4 @@
-import { verifyToken } from "../utils/jwt.utils.js";
+const { verifyToken } = require("../utils/jwt.utils.js");
 
 function authenticate(req, res, next) {
     const authHeader = req.headers['authorization'];
