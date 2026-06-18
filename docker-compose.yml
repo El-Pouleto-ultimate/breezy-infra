@@ -31,7 +31,7 @@ services:
   # ─── GATEWAY ────────────────────────────────────────────────────────────────
   gateway:
     build:
-      context: ../breezy-gateway
+      context: ./gateway
       dockerfile: Dockerfile
     container_name: breezy-gateway
     expose:
