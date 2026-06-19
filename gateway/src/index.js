@@ -61,7 +61,7 @@ app.use('/api/users', authMiddleware, createProxyMiddleware({
     on: {
         proxyReq: (proxyReq, req) => {
             console.log(`[PROXY] ${req.method} ${req.path} -> user-service`);
-            proxyReq.setHeader('x-user-id', req.user.id);
+            proxyReq.setHeader('x-user-id', req.user.sub);
             proxyReq.setHeader('x-user-role', req.user.role);
         },
         error: (err, req, res) => {
@@ -77,7 +77,7 @@ app.use('/api/posts', authMiddleware, createProxyMiddleware({
     on: {
         proxyReq: (proxyReq, req) => {
             console.log(`[PROXY] ${req.method} ${req.path} -> post-service`);
-            proxyReq.setHeader('x-user-id', req.user.id);
+            proxyReq.setHeader('x-user-id', req.user.sub);
             proxyReq.setHeader('x-user-role', req.user.role);
             proxyReq.setHeader('x-user-username', req.user.username);
         },
@@ -94,7 +94,7 @@ app.use('/api/profils', authMiddleware, createProxyMiddleware({
     on: {
         proxyReq: (proxyReq, req) => {
             console.log(`[PROXY] ${req.method} ${req.path} -> profil-service`);
-            proxyReq.setHeader('x-user-id', req.user.id);
+            proxyReq.setHeader('x-user-id', req.user.sub);
             proxyReq.setHeader('x-user-role', req.user.role);
             proxyReq.setHeader('x-user-username', req.user.username);
         },
