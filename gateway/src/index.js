@@ -79,6 +79,7 @@ app.use('/api/posts', authMiddleware, createProxyMiddleware({
             console.log(`[PROXY] ${req.method} ${req.path} -> post-service`);
             proxyReq.setHeader('x-user-id', req.user.id);
             proxyReq.setHeader('x-user-role', req.user.role);
+            proxyReq.setHeader('x-user-username', req.user.username);
         },
         error: (err, req, res) => {
             res.status(502).json({ error: 'Post service indisponible' });
@@ -95,6 +96,7 @@ app.use('/api/profils', authMiddleware, createProxyMiddleware({
             console.log(`[PROXY] ${req.method} ${req.path} -> profil-service`);
             proxyReq.setHeader('x-user-id', req.user.id);
             proxyReq.setHeader('x-user-role', req.user.role);
+            proxyReq.setHeader('x-user-username', req.user.username);
         },
         error: (err, req, res) => {
             res.status(502).json({ error: 'Profil service indisponible' });
