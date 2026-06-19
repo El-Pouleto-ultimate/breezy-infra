@@ -21,7 +21,7 @@ services:
       dockerfile: Dockerfile
     container_name: breezy-frontend
     expose:
-      - "3000"
+      - "${FRONTEND_PORT}"
     volumes:
       - ../breezy-frontend:/app
       - /app/node_modules
@@ -35,14 +35,14 @@ services:
       dockerfile: Dockerfile
     container_name: breezy-gateway
     expose:
-      - "3000"
+      - "${GATEWAY_PORT}"
     environment:
-      - PORT=3000
-      - JWT_SECRET=CACACACACACACACA
-      - AUTH_SERVICE_URL=http://auth-service:3001
-      - USER_SERVICE_URL=http://user-service:3002
-      - POST_SERVICE_URL=http://post-service:3003
-      - PROFIL_SERVICE_URL=http://profil-service:3004
+      - PORT=${GATEWAY_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - POST_SERVICE_URL=${POST_SERVICE_URL}
+      - PROFIL_SERVICE_URL=${PROFIL_SERVICE_URL}
     networks:
       - breezy-network
     depends_on:
@@ -58,11 +58,11 @@ services:
       dockerfile: Dockerfile
     container_name: breezy-auth
     expose:
-      - "3001"
+      - "${AUTH_PORT}"
     environment:
-      - PORT=3001
-      - JWT_SECRET=CACACACACACACACA
-      - DATABASE_URL=postgres://user:auth-password@pg-auth:5432/auth_db
+      - PORT=${AUTH_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=${AUTH_DB_URL}
     volumes:
       - ../breezy-auth-service:/app
       - /app/node_modules
@@ -77,10 +77,10 @@ services:
       dockerfile: Dockerfile
     container_name: breezy-user
     expose:
-      - "3002"
+      - "${USER_PORT}"
     environment:
-      - PORT=3002
-      - DATABASE_URL=postgres://user:user-password@pg-users:5432/users_db
+      - PORT=${USER_PORT}
+      - DATABASE_URL=${USER_DB_URL}
     volumes:
       - ../breezy-user-service:/app
       - /app/node_modules
@@ -95,10 +95,10 @@ services:
       dockerfile: Dockerfile
     container_name: breezy-post
     expose:
-      - "3003"
+      - "${POST_PORT}"
     environment:
-      - PORT=3003
-      - MONGO_URI=mongodb://mongo-posts:27017/posts_db
+      - PORT=${POST_PORT}
+      - MONGO_URI=${POST_DB_URL}
     volumes:
       - ../breezy-post-service:/app
       - /app/node_modules
@@ -113,10 +113,10 @@ services:
       dockerfile: Dockerfile
     container_name: breezy-profil
     expose:
-      - "3004"
+      - "${PROFIL_PORT}"
     environment:
-      - PORT=3004
-      - MONGO_URI=mongodb://mongo-profils:27017/profils_db
+      - PORT=${PROFIL_PORT}
+      - MONGO_URI=${PROFIL_DB_URL}
     volumes:
       - ../breezy-profil-service:/app
       - /app/node_modules
@@ -130,9 +130,9 @@ services:
     image: postgres:15-alpine
     container_name: breezy-db-pg-auth
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: auth-password
-      POSTGRES_DB: auth_db
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+      POSTGRES_DB: ${AUTH_DB_NAME}
     volumes:
       - pg_auth_data:/var/lib/postgresql/data
     networks:
@@ -142,9 +142,9 @@ services:
     image: postgres:15-alpine
     container_name: breezy-db-pg-users
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: user-password
-      POSTGRES_DB: users_db
+      POSTGRES_USER: ${USER_DB_USER}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD}
+      POSTGRES_DB: ${USER_DB_NAME}
     volumes:
       - pg_users_data:/var/lib/postgresql/data
     networks:
