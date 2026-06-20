@@ -68,8 +68,10 @@ services:
       - /app/node_modules
     networks:
       - breezy-network
+    restart: on-failure
     depends_on:
-      - pg-auth
+      pg-auth:
+        condition: service_healthy
 
   user-service:
     build:
@@ -86,8 +88,10 @@ services:
       - /app/node_modules
     networks:
       - breezy-network
+    restart: on-failure
     depends_on:
-      - pg-users
+      pg-users:
+        condition: service_healthy
 
   post-service:
     build:
@@ -104,8 +108,10 @@ services:
       - /app/node_modules
     networks:
       - breezy-network
+    restart: on-failure
     depends_on:
-      - mongo-posts
+      mongo-posts:
+        condition: service_healthy
 
   profil-service:
     build:
@@ -122,8 +128,10 @@ services:
       - /app/node_modules
     networks:
       - breezy-network
+    restart: on-failure
     depends_on:
-      - mongo-profils
+      mongo-profils:
+        condition: service_healthy
 
   # ─── BASES DE DONNÉES ───────────────────────────────────────────────────────
   pg-auth:
@@ -137,6 +145,11 @@ services:
       - pg_auth_data:/var/lib/postgresql/data
     networks:
       - breezy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER} -d ${AUTH_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   pg-users:
     image: postgres:15-alpine
@@ -149,6 +162,11 @@ services:
       - pg_users_data:/var/lib/postgresql/data
     networks:
       - breezy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB_USER} -d ${USER_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   mongo-posts:
     image: mongo:6
@@ -157,6 +175,11 @@ services:
       - mongo_posts_data:/data/db
     networks:
       - breezy-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   mongo-profils:
     image: mongo:6
@@ -165,6 +188,11 @@ services:
       - mongo_profils_data:/data/db
     networks:
       - breezy-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 # ─── VOLUMES ──────────────────────────────────────────────────────────────────
 volumes:
