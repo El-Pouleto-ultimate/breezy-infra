@@ -22,9 +22,6 @@ services:
     container_name: breezy-frontend
     expose:
       - "${FRONTEND_PORT}"
-    volumes:
-      - ../breezy-frontend:/app
-      - /app/node_modules
     networks:
       - breezy-network
 
@@ -63,6 +60,8 @@ services:
       - PORT=${AUTH_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - DATABASE_URL=${AUTH_DB_URL}
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     volumes:
       - ../breezy-auth-service:/app
       - /app/node_modules
@@ -83,6 +82,8 @@ services:
     environment:
       - PORT=${USER_PORT}
       - DATABASE_URL=${USER_DB_URL}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     volumes:
       - ../breezy-user-service:/app
       - /app/node_modules
@@ -103,6 +104,9 @@ services:
     environment:
       - PORT=${POST_PORT}
       - MONGO_URI=${POST_DB_URL}
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - PROFIL_SERVICE_URL=${PROFIL_SERVICE_URL}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     volumes:
       - ../breezy-post-service:/app
       - /app/node_modules
@@ -123,6 +127,7 @@ services:
     environment:
       - PORT=${PROFIL_PORT}
       - MONGO_URI=${PROFIL_DB_URL}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     volumes:
       - ../breezy-profil-service:/app
       - /app/node_modules
