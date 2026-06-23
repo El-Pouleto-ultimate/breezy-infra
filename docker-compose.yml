@@ -34,6 +34,7 @@ services:
     expose:
       - "${GATEWAY_PORT}"
     environment:
+      - NODE_ENV=test
       - PORT=${GATEWAY_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
@@ -83,6 +84,7 @@ services:
       - PORT=${USER_PORT}
       - DATABASE_URL=${USER_DB_URL}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - PROFIL_SERVICE_URL=${PROFIL_SERVICE_URL}
       - INTERNAL_SECRET=${INTERNAL_SECRET}
     volumes:
       - ../breezy-user-service:/app
@@ -110,6 +112,7 @@ services:
     volumes:
       - ../breezy-post-service:/app
       - /app/node_modules
+      - uploads_data:/app/uploads
     networks:
       - breezy-network
     restart: on-failure
@@ -135,6 +138,31 @@ services:
       - breezy-network
     restart: on-failure
     depends_on:
+      mongo-profils:
+        condition: service_healthy
+
+  # ─── SEED ────────────────────────────────────────────────────────────────────
+  seed:
+    build:
+      context: ./seed
+      dockerfile: Dockerfile
+    container_name: breezy-seed
+    environment:
+      - GATEWAY_URL=http://gateway:3000/api
+      - SEED_ROLE_MODE=psql
+      - AUTH_DATABASE_URL=postgres://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@pg-auth:5432/${AUTH_DB_NAME}
+    networks:
+      - breezy-network
+    restart: "no"
+    depends_on:
+      gateway:
+        condition: service_started
+      pg-auth:
+        condition: service_healthy
+      pg-users:
+        condition: service_healthy
+      mongo-posts:
+        condition: service_healthy
       mongo-profils:
         condition: service_healthy
 
@@ -176,12 +204,15 @@ services:
   mongo-posts:
     image: mongo:6
     container_name: breezy-db-mongo-posts
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
     volumes:
       - mongo_posts_data:/data/db
     networks:
       - breezy-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "-u", "${MONGO_USER}", "-p", "${MONGO_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -189,12 +220,15 @@ services:
   mongo-profils:
     image: mongo:6
     container_name: breezy-db-mongo-profils
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
     volumes:
       - mongo_profils_data:/data/db
     networks:
       - breezy-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "-u", "${MONGO_USER}", "-p", "${MONGO_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -205,6 +239,7 @@ volumes:
   pg_users_data:
   mongo_posts_data:
   mongo_profils_data:
+  uploads_data:
 
 # ─── RÉSEAU ───────────────────────────────────────────────────────────────────
 networks:
