@@ -34,7 +34,7 @@ services:
     expose:
       - "${GATEWAY_PORT}"
     environment:
-      - NODE_ENV=test
+      - NODE_ENV=production
       - PORT=${GATEWAY_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
