@@ -34,6 +34,7 @@ services:
     expose:
       - "${GATEWAY_PORT}"
     environment:
+      - NODE_ENV=test
       - PORT=${GATEWAY_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
@@ -83,6 +84,7 @@ services:
       - PORT=${USER_PORT}
       - DATABASE_URL=${USER_DB_URL}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - PROFIL_SERVICE_URL=${PROFIL_SERVICE_URL}
       - INTERNAL_SECRET=${INTERNAL_SECRET}
     volumes:
       - ../breezy-user-service:/app
@@ -110,6 +112,7 @@ services:
     volumes:
       - ../breezy-post-service:/app
       - /app/node_modules
+      - uploads_data:/app/uploads
     networks:
       - breezy-network
     restart: on-failure
@@ -135,6 +138,31 @@ services:
       - breezy-network
     restart: on-failure
     depends_on:
+      mongo-profils:
+        condition: service_healthy
+
+  # ─── SEED ────────────────────────────────────────────────────────────────────
+  seed:
+    build:
+      context: ./seed
+      dockerfile: Dockerfile
+    container_name: breezy-seed
+    environment:
+      - GATEWAY_URL=http://gateway:3000/api
+      - SEED_ROLE_MODE=psql
+      - AUTH_DATABASE_URL=postgres://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@pg-auth:5432/${AUTH_DB_NAME}
+    networks:
+      - breezy-network
+    restart: "no"
+    depends_on:
+      gateway:
+        condition: service_started
+      pg-auth:
+        condition: service_healthy
+      pg-users:
+        condition: service_healthy
+      mongo-posts:
+        condition: service_healthy
       mongo-profils:
         condition: service_healthy
 
@@ -205,6 +233,7 @@ volumes:
   pg_users_data:
   mongo_posts_data:
   mongo_profils_data:
+  uploads_data:
 
 # ─── RÉSEAU ───────────────────────────────────────────────────────────────────
 networks:

@@ -11,30 +11,36 @@ app.use(express.json({ limit: '5mb' }));
 
 // ─── RATE LIMITING ────────────────────────────────────────────────────────────
 
-// Limiteur global : 500 requêtes par 15 minutes par IP
+// En mode test, on désactive le rate limiting pour que les tests
+// puissent créer/supprimer des utilisateurs sans restriction.
+const isTest = process.env.NODE_ENV === 'test';
+
+// Limiteur global : 500 requêtes par 15 minutes par IP (sauf en test)
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 500,
+    max: isTest ? 999999 : 500,
     message: { error: 'Trop de requêtes, réessaie dans 15 minutes' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// Limiteur strict pour login/register : 20 tentatives par 15 minutes
+// Limiteur strict pour login/register : 20 tentatives par 15 minutes (sauf en test)
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 20,
+    max: isTest ? 999999 : 20,
     message: { error: 'Trop de tentatives de connexion, réessaie dans 15 minutes' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
 // On applique le limiteur global sur toutes les routes
-app.use(globalLimiter);
+if (!isTest) app.use(globalLimiter);
 
 // On applique le limiteur strict uniquement sur login et register
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
+if (!isTest) {
+    app.use('/api/auth/login', authLimiter);
+    app.use('/api/auth/register', authLimiter);
+}
 
 // ─── ROUTES AUTH PROTÉGÉES (me, change-password) ─────────────────────────────
 
@@ -108,6 +114,40 @@ app.use('/api/users', authMiddleware, createProxyMiddleware({
         },
         error: (err, req, res) => {
             res.status(502).json({ error: 'User service indisponible' });
+        }
+    }
+}));
+
+// route proxy pour /api/upload (upload de fichiers vers le post-service)
+app.use('/api/upload', authMiddleware, createProxyMiddleware({
+    target: process.env.POST_SERVICE_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/': '/api/upload' },
+    on: {
+        proxyReq: (proxyReq, req, res) => {
+            console.log(`[PROXY] ${req.method} ${req.originalUrl} -> post-service (upload)`);
+            proxyReq.setHeader('x-user-id', req.user.sub);
+            proxyReq.setHeader('x-user-role', req.user.role);
+            proxyReq.setHeader('x-user-username', req.user.username);
+            fixRequestBody(proxyReq, req, res);
+        },
+        error: (err, req, res) => {
+            res.status(502).json({ error: 'Post service indisponible' });
+        }
+    }
+}));
+
+// route proxy pour /api/uploads (fichiers statiques, public)
+app.use('/api/uploads', createProxyMiddleware({
+    target: process.env.POST_SERVICE_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/': '/api/uploads/' },
+    on: {
+        proxyReq: (proxyReq, req, res) => {
+            console.log(`[PROXY] ${req.method} ${req.originalUrl} -> post-service (static)`);
+        },
+        error: (err, req, res) => {
+            res.status(502).json({ error: 'Post service indisponible' });
         }
     }
 }));
