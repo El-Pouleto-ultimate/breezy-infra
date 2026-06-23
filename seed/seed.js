@@ -77,6 +77,21 @@ const COMMENTS = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
+// WAIT FOR GATEWAY
+// ═══════════════════════════════════════════════════════════════
+async function waitForGateway(maxRetries = 30) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await axios.get(`${BASE}/health`, { timeout: 3000 });
+      if (res.status === 200) { console.log('  ✓ Gateway prêt\n'); return; }
+    } catch {}
+    process.stdout.write(`  ⏳ Attente gateway... ${i + 1}/${maxRetries}\r`);
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  console.log('\n  ⚠ Gateway inaccessible, la seed va probablement échouer.\n');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
 
@@ -142,6 +157,8 @@ const setRole = (username, role) => {
   console.log('🌱  BREEZY SEED');
   console.log(`    Gateway : ${BASE}`);
   console.log(`    Role mode : ${ROLE_MODE}\n`);
+
+  await waitForGateway();
 
   const users = {};
   const posts = {};
