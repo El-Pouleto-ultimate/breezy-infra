@@ -1,0 +1,124 @@
+# ==============================================================================
+# CI — Intégration breezy-infra (Docker Compose)
+# ------------------------------------------------------------------------------
+# Ce workflow vérifie que la stack complète Breezy (7 services + 4 bases de
+# données) démarre sans erreur.
+# Il clone les 5 dépôts frères dans la structure de répertoires attendue par
+# docker-compose.yml, lance la stack, puis vérifie l'état des conteneurs.
+# ==============================================================================
+name: CI — Intégration breezy-infra
+
+# ── Déclencheurs ───────────────────────────────────────────────────────────────
+# breezy-infra n'a qu'une seule branche distante : main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  compose-up:
+    name: Docker Compose · Stack complète
+    # Runner Linux avec Docker et le plugin Compose V2 pré-installés.
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Récupérer breezy-infra ─────────────────────────────────────────────
+      # Le dépôt est cloné dans $GITHUB_WORKSPACE, soit :
+      #   /home/runner/work/breezy-infra/breezy-infra
+      # Les répertoires locaux ./nginx et ./gateway (utilisés comme build context
+      # dans docker-compose.yml) sont inclus dans ce checkout.
+      - name: Checkout breezy-infra
+        uses: actions/checkout@v4
+
+      # ── 2. Cloner les 5 dépôts frères au bon emplacement ─────────────────────
+      # docker-compose.yml référence les build contexts avec des chemins relatifs
+      # de type "../breezy-X". Depuis $GITHUB_WORKSPACE, "un cran au-dessus"
+      # correspond à /home/runner/work/breezy-infra/ — c'est là que les clones
+      # doivent se trouver pour que les chemins soient résolus correctement.
+      #
+      # working-directory: ${{ github.workspace }}/.. pointe vers ce répertoire
+      # parent ; les commandes "git clone ..." y créent directement les dossiers
+      # breezy-frontend/, breezy-auth-service/, etc.
+      #
+      # --depth 1 : clone superficiel (seul le dernier commit) → plus rapide en CI.
+      #
+      # ⚠  PLACEHOLDERS — à remplacer avant de pousser ce fichier :
+      #    Remplacer GITHUB_USERNAME par le nom d'utilisateur ou d'organisation
+      #    GitHub réel (ex : El-Pouleto-ultimate).
+      #
+      # ⚠  DÉPÔTS PRIVÉS — si les dépôts sont privés, remplacer les URLs par :
+      #    https://x-access-token:${{ secrets.GH_PAT }}@github.com/GITHUB_USERNAME/REPO.git
+      #    et créer le secret GH_PAT (Personal Access Token, scope "repo") dans
+      #    les Settings → Secrets du dépôt breezy-infra.
+      - name: Cloner les dépôts frères
+        working-directory: ${{ github.workspace }}/..
+        run: |
+          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-frontend.git
+          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-auth-service.git
+          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-user-service.git
+          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-post-service.git
+          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-profil-service.git
+
+      # ── 3. Préparer le fichier .env ───────────────────────────────────────────
+      # docker-compose.yml lit les variables d'environnement depuis un fichier .env.
+      # Le dépôt contient un .env.example avec des valeurs de développement
+      # non secrètes (credentials fictifs pour les bases locales) → suffisant
+      # pour valider que la stack démarre correctement en CI.
+      # Pour un vrai environnement partagé ou public, injecter les vraies valeurs
+      # via des GitHub Secrets et les écrire dans .env depuis la step ci-dessous.
+      - name: Préparer le fichier .env depuis .env.example
+        run: cp .env.example .env
+
+      # ── 4. Construire et démarrer la stack en arrière-plan ────────────────────
+      # "docker compose" (sans tiret) = Docker Compose V2, pré-installé sur
+      # ubuntu-latest. Équivalent de l'ancienne commande "docker-compose".
+      # --build : force la reconstruction de toutes les images Docker → s'assure
+      #   que le code courant est testé, sans artefacts de cache stale.
+      # -d (detached) : le step se termine après le lancement des conteneurs,
+      #   sans bloquer sur les logs. On vérifie l'état plus loin (step 6).
+      - name: Lancer la stack (docker compose up --build -d)
+        run: docker compose up --build -d
+
+      # ── 5. Attendre l'initialisation des services ─────────────────────────────
+      # Les bases de données ont des healthchecks (interval: 5s, retries: 10),
+      # soit jusqu'à ~50 s avant d'être déclarées "healthy". Les services
+      # applicatifs (auth, user, post, profil) démarrent après.
+      # 30 secondes offrent une fenêtre raisonnable pour que les DB soient prêtes
+      # et que les services se connectent avant la vérification de l'état.
+      - name: Attendre 30 secondes (initialisation des services)
+        run: sleep 30
+
+      # ── 6. Vérifier que tous les conteneurs sont actifs ───────────────────────
+      # Affiche l'état de chaque conteneur puis compte ceux qui ont quitté
+      # de façon anormale (Exit N, exited, unhealthy).
+      # Si au moins un conteneur est en erreur, le step échoue (exit 1)
+      # → le job est marqué "failed" dans l'interface GitHub Actions.
+      - name: Vérifier l'état des conteneurs
+        run: |
+          echo "=== État de la stack ==="
+          docker compose ps
+          echo ""
+          # grep -c retourne le nombre de lignes correspondantes ;
+          # si grep ne trouve rien il retourne 1 mais wc -l affiche quand même 0.
+          FAILED=$(docker compose ps | grep -E "Exit [0-9]|exited|unhealthy" | wc -l)
+          if [ "$FAILED" -gt 0 ]; then
+            echo "ERREUR : $FAILED conteneur(s) ne sont pas en état 'running'"
+            exit 1
+          fi
+          echo "OK : tous les conteneurs sont actifs"
+
+      # ── 7. Afficher les logs en cas d'échec ───────────────────────────────────
+      # "if: failure()" garantit que ce step ne s'exécute QUE si un step
+      # précédent a échoué — il n'alourdit pas les runs nominaux.
+      # Affiche les logs de tous les services pour faciliter le débogage.
+      - name: Afficher les logs de la stack (diagnostic d'échec)
+        if: failure()
+        run: docker compose logs --no-color
+
+      # ── 8. Arrêter et nettoyer la stack ──────────────────────────────────────
+      # "if: always()" : ce step tourne dans tous les cas (succès ou échec)
+      # pour libérer les ressources du runner (volumes Docker inclus).
+      - name: Arrêter la stack (nettoyage)
+        if: always()
+        run: docker compose down -v
