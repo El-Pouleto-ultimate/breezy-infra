@@ -212,9 +212,15 @@ services:
     networks:
       - breezy-network
     healthcheck:
-      test: ["CMD", "mongosh", "-u", "${MONGO_USER}", "-p", "${MONGO_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      # CMD-SHELL : le shell du conteneur expand $MONGO_INITDB_ROOT_USERNAME
+      # et $MONGO_INITDB_ROOT_PASSWORD (variables injectées via "environment:" ci-dessus).
+      # Évite les problèmes d'interpolation Docker Compose avec la forme CMD pure.
+      # start_period : laisse 10 s à MongoDB pour initialiser l'admin user
+      # avant que les échecs comptent dans les retries.
+      test: ["CMD-SHELL", "mongosh --quiet -u $MONGO_INITDB_ROOT_USERNAME -p $MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.runCommand({ping:1}).ok' | grep -q 1"]
       interval: 5s
-      timeout: 5s
+      timeout: 10s
+      start_period: 10s
       retries: 10
 
   mongo-profils:
@@ -228,9 +234,10 @@ services:
     networks:
       - breezy-network
     healthcheck:
-      test: ["CMD", "mongosh", "-u", "${MONGO_USER}", "-p", "${MONGO_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "mongosh --quiet -u $MONGO_INITDB_ROOT_USERNAME -p $MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.runCommand({ping:1}).ok' | grep -q 1"]
       interval: 5s
-      timeout: 5s
+      timeout: 10s
+      start_period: 10s
       retries: 10
 
 # ─── VOLUMES ──────────────────────────────────────────────────────────────────
