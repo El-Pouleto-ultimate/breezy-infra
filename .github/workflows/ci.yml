@@ -54,11 +54,11 @@ jobs:
       - name: Cloner les dépôts frères
         working-directory: ${{ github.workspace }}/..
         run: |
-          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-frontend.git
-          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-auth-service.git
-          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-user-service.git
-          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-post-service.git
-          git clone --depth 1 https://github.com/El-Pouleto-ultimate/breezy-profil-service.git
+          git clone --depth 1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/El-Pouleto-ultimate/breezy-frontend.git
+          git clone --depth 1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/El-Pouleto-ultimate/breezy-auth-service.git
+          git clone --depth 1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/El-Pouleto-ultimate/breezy-user-service.git
+          git clone --depth 1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/El-Pouleto-ultimate/breezy-post-service.git
+          git clone --depth 1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/El-Pouleto-ultimate/breezy-profil-service.git
 
       # ── 3. Préparer le fichier .env ───────────────────────────────────────────
       # docker-compose.yml lit les variables d'environnement depuis un fichier .env.
