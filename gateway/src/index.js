@@ -80,6 +80,46 @@ app.use('/api/auth/change-password', authMiddleware, createProxyMiddleware({
     }
 }));
 
+// ─── ROUTE AUTH USERNAME (mise à jour) — doit être AVANT le catch-all /api/auth ─
+
+app.use('/api/auth/username', authMiddleware, createProxyMiddleware({
+    target: process.env.AUTH_SERVICE_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/': '/auth/username' },
+    on: {
+        proxyReq: (proxyReq, req, res) => {
+            console.log(`[PROXY] ${req.method} ${req.originalUrl} -> auth-service (username update)`);
+            proxyReq.setHeader('x-user-id', req.user.sub);
+            proxyReq.setHeader('x-user-role', req.user.role);
+            proxyReq.setHeader('x-user-username', req.user.username);
+            fixRequestBody(proxyReq, req, res);
+        },
+        error: (err, req, res) => {
+            res.status(502).json({ error: 'Auth service indisponible' });
+        }
+    }
+}));
+
+// ─── ROUTES AUTH ADMIN (create-user) — doit être AVANT le catch-all /api/auth ─
+
+app.use('/api/auth/admin', authMiddleware, createProxyMiddleware({
+    target: process.env.AUTH_SERVICE_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/': '/auth/admin/' },
+    on: {
+        proxyReq: (proxyReq, req, res) => {
+            console.log(`[PROXY] ${req.method} ${req.originalUrl} -> auth-service (admin)`);
+            proxyReq.setHeader('x-user-id', req.user.sub);
+            proxyReq.setHeader('x-user-role', req.user.role);
+            proxyReq.setHeader('x-user-username', req.user.username);
+            fixRequestBody(proxyReq, req, res);
+        },
+        error: (err, req, res) => {
+            res.status(502).json({ error: 'Auth service indisponible' });
+        }
+    }
+}));
+
 // ─── ROUTES AUTH PUBLIQUES (login, register, refresh, logout) ────────────────
 
 app.use('/api/auth', createProxyMiddleware({
