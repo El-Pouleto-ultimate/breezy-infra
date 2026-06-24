@@ -115,6 +115,7 @@ services:
       - USER_SERVICE_URL=${USER_SERVICE_URL}
       - PROFIL_SERVICE_URL=${PROFIL_SERVICE_URL}
       - INTERNAL_SECRET=${INTERNAL_SECRET}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - CORS_ORIGIN=http://localhost:3000
     volumes:
       - ../breezy-post-service:/app
