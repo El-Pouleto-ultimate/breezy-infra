@@ -20,6 +20,8 @@ const path = require('path');
 const BASE = process.env.GATEWAY_URL || 'http://localhost/api';
 const PASS = process.env.SEED_PASSWORD || 'Breezy2024!';
 const ROLE_MODE = process.env.SEED_ROLE_MODE || 'docker'; // 'docker' | 'psql' | 'skip'
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || null;
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET || null;
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIG
@@ -32,6 +34,7 @@ const ACCOUNTS = [
   { username: 'modo_lucas',    email: 'modo.lucas@breezy.test',    role: 'moderator' },
   { username: 'modo_chloe',    email: 'modo.chloe@breezy.test',    role: 'moderator' },
   { username: 'modo_hugo',     email: 'modo.hugo@breezy.test',     role: 'moderator' },
+  { username: 'breezy_ai',     email: 'breezy.ai@breezy.test',     role: 'user' },
   { username: 'alex_photo',    email: 'alex.photo@breezy.test',    role: 'user' },
   { username: 'lea_voyage',    email: 'lea.voyage@breezy.test',    role: 'user' },
   { username: 'max_tech',      email: 'max.tech@breezy.test',      role: 'user' },
@@ -232,6 +235,29 @@ const setRole = (username, role) => {
         console.log(`    ✅ @${uname} — nouveau token (rôle OK)`);
       }
     }
+  }
+
+  // ─── PHASE 2.5 : RESYNC RÔLES vers user-service ─────────────
+  // Nécessaire car setRole modifie auth_db directement sans passer par /users/sync
+  if (USER_SERVICE_URL && INTERNAL_SECRET && needsRelogin.length > 0) {
+    console.log('\n── Phase 2.5 : Resync rôles → user-service ──');
+    for (const uname of needsRelogin) {
+      const u = users[uname];
+      if (!u?.id) continue;
+      try {
+        await axios.post(`${USER_SERVICE_URL}/users/sync`, {
+          id: u.id, username: uname, role: u.role,
+        }, {
+          headers: { 'x-internal-secret': INTERNAL_SECRET },
+          timeout: 5000,
+        });
+        console.log(`  ✅ @${uname} → rôle '${u.role}' synchro dans user_profiles`);
+      } catch (e) {
+        console.warn(`  ⚠️  @${uname} — resync échoué: ${e.message}`);
+      }
+    }
+  } else if (needsRelogin.length > 0) {
+    console.log('\n  ℹ️  Resync rôles ignoré — USER_SERVICE_URL ou INTERNAL_SECRET non défini');
   }
 
   // ─── PHASE 3 : POSTS ────────────────────────────────────────

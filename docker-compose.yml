@@ -161,6 +161,8 @@ services:
       - GATEWAY_URL=http://gateway:3000/api
       - SEED_ROLE_MODE=psql
       - AUTH_DATABASE_URL=postgres://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@pg-auth:5432/${AUTH_DB_NAME}
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     networks:
       - breezy-network
     restart: "no"
